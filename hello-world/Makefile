@@ -1,10 +1,10 @@
-ACCOUNT_ID:=$(shell aws sts get-caller-identity --profile $(AWS_PROFILE) --region $(AWS_REGION) --output text --query 'Account')
-
 MAKE_ARGS:=
 
 ifeq ($(CODEBUILD_RESOLVED_SOURCE_VERSION),)
-	MAKE_ARGS=--profile swm --region us-east-1
+	MAKE_ARGS=--profile $(AWS_PROFILE) --region $(AWS_REGION)
 endif
+
+ACCOUNT_ID:=$(shell aws sts get-caller-identity $(MAKE_ARGS) --output text --query 'Account')
 
 # all xxx needs to be updated, also modify other constants as required
 
@@ -30,9 +30,6 @@ STACK_NAME:=$(ENV_LABEL)-$(SUB_SYSTEM)-$(SERVICE_NAME)
 IMAGE_NAME:=$(SUB_SYSTEM)-$(SERVICE_NAME)
 ECR_ADDR:=$(ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/$(IMAGE_NAME)
 
-chec:
-	aws ecr describe-repositories $(MAKE_ARGS)
-
 build:
 	docker build -t $(SERVICE_NAME) .
 run:
@@ -41,26 +38,26 @@ test:
 	# Replace this with service unit/functional tests
 	docker build -t $(SERVICE_NAME) .
 ecr:
-	aws ecr create-repository --repository-name $(IMAGE_NAME) --profile $(AWS_PROFILE) --region $(AWS_REGION)
+	aws ecr create-repository --repository-name $(IMAGE_NAME) $(MAKE_ARGS)
 ecr-delete:
-	aws ecr delete-repository --repository-name $(IMAGE_NAME) --profile $(AWS_PROFILE) --region $(AWS_REGION)
+	aws ecr delete-repository --repository-name $(IMAGE_NAME) $(MAKE_ARGS)
 ecr-push:
 	make build
 	eval `aws ecr get-login --no-include-email --region $(AWS_REGION) --profile $(AWS_PROFILE)`
 	docker tag $(SERVICE_NAME):latest $(ECR_ADDR):$(SERVICE_VERSION)
 	docker push $(ECR_ADDR):$(SERVICE_VERSION)
 create-resources:
-	aws cloudformation create-stack --stack-name $(STACK_NAME)-resources --template-body file://Infrastructure/resources.yaml --profile $(AWS_PROFILE) --region $(AWS_REGION) --parameters ParameterKey=EnvLabel,ParameterValue=$(ENV_LABEL) ParameterKey=EnvType,ParameterValue=$(ENV_TYPE) ParameterKey=SubSystem,ParameterValue=$(SUB_SYSTEM) ParameterKey=ServiceName,ParameterValue=$(SERVICE_NAME)
+	aws cloudformation create-stack --stack-name $(STACK_NAME)-resources --template-body file://Infrastructure/resources.yaml $(MAKE_ARGS) --parameters ParameterKey=EnvLabel,ParameterValue=$(ENV_LABEL) ParameterKey=EnvType,ParameterValue=$(ENV_TYPE) ParameterKey=SubSystem,ParameterValue=$(SUB_SYSTEM) ParameterKey=ServiceName,ParameterValue=$(SERVICE_NAME)
 update-resources:
-	aws cloudformation update-stack --stack-name $(STACK_NAME)-resources --template-body file://Infrastructure/resources.yaml --profile $(AWS_PROFILE) --region $(AWS_REGION) --parameters ParameterKey=EnvLabel,UsePreviousValue=true ParameterKey=EnvType,UsePreviousValue=true ParameterKey=SubSystem,UsePreviousValue=true ParameterKey=ServiceName,UsePreviousValue=true
+	aws cloudformation update-stack --stack-name $(STACK_NAME)-resources --template-body file://Infrastructure/resources.yaml $(MAKE_ARGS) --parameters ParameterKey=EnvLabel,UsePreviousValue=true ParameterKey=EnvType,UsePreviousValue=true ParameterKey=SubSystem,UsePreviousValue=true ParameterKey=ServiceName,UsePreviousValue=true
 
 create-service:
-	aws cloudformation create-stack --stack-name $(STACK_NAME) --template-body file://Infrastructure/service.yaml --profile $(AWS_PROFILE) --region $(AWS_REGION) --capabilities CAPABILITY_IAM --parameters ParameterKey=EnvLabel,ParameterValue=$(ENV_LABEL) ParameterKey=EnvType,ParameterValue=$(ENV_TYPE) ParameterKey=SubSystem,ParameterValue=$(SUB_SYSTEM) ParameterKey=ServiceName,ParameterValue=$(SERVICE_NAME) ParameterKey=ServiceVersion,ParameterValue=$(SERVICE_VERSION) ParameterKey=DockerRepoUrl,ParameterValue=$(ECR_ADDR) ParameterKey=AppPort,ParameterValue=$(APP_PORT) ParameterKey=UrlPattern,ParameterValue=$(URL_PATTERN) ParameterKey=Priority,ParameterValue=$(PRIORITY) ParameterKey=DesiredCount,ParameterValue=$(DESIRED_COUNT) ParameterKey=HealthCheckPath,ParameterValue=$(HEALTH_CHECK_PATH)
+	aws cloudformation create-stack --stack-name $(STACK_NAME) --template-body file://Infrastructure/service.yaml $(MAKE_ARGS) --capabilities CAPABILITY_IAM --parameters ParameterKey=EnvLabel,ParameterValue=$(ENV_LABEL) ParameterKey=EnvType,ParameterValue=$(ENV_TYPE) ParameterKey=SubSystem,ParameterValue=$(SUB_SYSTEM) ParameterKey=ServiceName,ParameterValue=$(SERVICE_NAME) ParameterKey=ServiceVersion,ParameterValue=$(SERVICE_VERSION) ParameterKey=DockerRepoUrl,ParameterValue=$(ECR_ADDR) ParameterKey=AppPort,ParameterValue=$(APP_PORT) ParameterKey=UrlPattern,ParameterValue=$(URL_PATTERN) ParameterKey=Priority,ParameterValue=$(PRIORITY) ParameterKey=DesiredCount,ParameterValue=$(DESIRED_COUNT) ParameterKey=HealthCheckPath,ParameterValue=$(HEALTH_CHECK_PATH)
 update-service:
-	aws cloudformation update-stack --stack-name $(STACK_NAME) --template-body file://Infrastructure/service.yaml --profile $(AWS_PROFILE) --region $(AWS_REGION) --capabilities CAPABILITY_IAM --parameters ParameterKey=EnvLabel,UsePreviousValue=true ParameterKey=EnvType,UsePreviousValue=true ParameterKey=SubSystem,UsePreviousValue=true ParameterKey=ServiceName,UsePreviousValue=true ParameterKey=ServiceVersion,ParameterValue=$(SERVICE_VERSION) ParameterKey=DockerRepoUrl,ParameterValue=$(ECR_ADDR) ParameterKey=AppPort,ParameterValue=$(APP_PORT) ParameterKey=UrlPattern,ParameterValue=$(URL_PATTERN) ParameterKey=Priority,ParameterValue=$(PRIORITY) ParameterKey=DesiredCount,ParameterValue=$(DESIRED_COUNT) ParameterKey=HealthCheckPath,ParameterValue=$(HEALTH_CHECK_PATH)
+	aws cloudformation update-stack --stack-name $(STACK_NAME) --template-body file://Infrastructure/service.yaml $(MAKE_ARGS) --capabilities CAPABILITY_IAM --parameters ParameterKey=EnvLabel,UsePreviousValue=true ParameterKey=EnvType,UsePreviousValue=true ParameterKey=SubSystem,UsePreviousValue=true ParameterKey=ServiceName,UsePreviousValue=true ParameterKey=ServiceVersion,ParameterValue=$(SERVICE_VERSION) ParameterKey=DockerRepoUrl,ParameterValue=$(ECR_ADDR) ParameterKey=AppPort,ParameterValue=$(APP_PORT) ParameterKey=UrlPattern,ParameterValue=$(URL_PATTERN) ParameterKey=Priority,ParameterValue=$(PRIORITY) ParameterKey=DesiredCount,ParameterValue=$(DESIRED_COUNT) ParameterKey=HealthCheckPath,ParameterValue=$(HEALTH_CHECK_PATH)
 
 create-deployment:
-	aws cloudformation create-stack --stack-name $(STACK_NAME)-deployment --template-body file://Infrastructure/deployment.yaml --profile $(AWS_PROFILE) --region $(AWS_REGION) --capabilities CAPABILITY_IAM --parameters ParameterKey=ServiceName,ParameterValue=$(SERVICE_NAME) ParameterKey=SubSystem,ParameterValue=$(SUB_SYSTEM) ParameterKey=GitRepo,ParameterValue=$(GIT_REPO) ParameterKey=GitUser,ParameterValue=$(GIT_USER) ParameterKey=SourcePath,ParameterValue=$(SOURCE_PATH)
+	aws cloudformation create-stack --stack-name $(STACK_NAME)-deployment --template-body file://Infrastructure/deployment.yaml $(MAKE_ARGS) --capabilities CAPABILITY_IAM --parameters ParameterKey=ServiceName,ParameterValue=$(SERVICE_NAME) ParameterKey=SubSystem,ParameterValue=$(SUB_SYSTEM) ParameterKey=GitRepo,ParameterValue=$(GIT_REPO) ParameterKey=GitUser,ParameterValue=$(GIT_USER) ParameterKey=SourcePath,ParameterValue=$(SOURCE_PATH)
 
 version:
 	echo $(SERVICE_VERSION)
