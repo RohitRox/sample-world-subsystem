@@ -71,6 +71,10 @@ Resources:
                   - cloudformation:*
                   - cloudwatch:*
                 Resource: "*"
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                - iam:PassRole
 
   CodeBuildDeploy:
     Type: AWS::CodeBuild::Project
