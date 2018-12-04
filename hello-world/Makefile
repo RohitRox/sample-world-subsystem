@@ -43,7 +43,7 @@ ecr-delete:
 	aws ecr delete-repository --repository-name $(IMAGE_NAME) $(MAKE_ARGS)
 ecr-push:
 	make build
-	eval `aws ecr get-login --no-include-email --region $(MAKE_ARGS)`
+	eval `aws ecr get-login --no-include-email $(MAKE_ARGS)`
 	docker tag $(SERVICE_NAME):latest $(ECR_ADDR):$(SERVICE_VERSION)
 	docker push $(ECR_ADDR):$(SERVICE_VERSION)
 create-resources:
