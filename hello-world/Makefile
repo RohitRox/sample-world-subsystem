@@ -58,6 +58,8 @@ update-service:
 
 create-deployment:
 	aws cloudformation create-stack --stack-name $(STACK_NAME)-deployment --template-body file://Infrastructure/deployment.yaml $(MAKE_ARGS) --capabilities CAPABILITY_IAM --parameters ParameterKey=ServiceName,ParameterValue=$(SERVICE_NAME) ParameterKey=SubSystem,ParameterValue=$(SUB_SYSTEM) ParameterKey=GitRepo,ParameterValue=$(GIT_REPO) ParameterKey=GitUser,ParameterValue=$(GIT_USER) ParameterKey=SourcePath,ParameterValue=$(SOURCE_PATH)
+update-deployment:
+	aws cloudformation update-stack --stack-name $(STACK_NAME)-deployment --template-body file://Infrastructure/deployment.yaml $(MAKE_ARGS) --capabilities CAPABILITY_IAM --parameters ParameterKey=ServiceName,UsePreviousValue=true ParameterKey=SubSystem,UsePreviousValue=true ParameterKey=GitRepo,UsePreviousValue=true ParameterKey=GitUser,UsePreviousValue=true ParameterKey=GitOauthToken,ParameterValue=$(GIT_OAUTH_TOKEN) ParameterKey=SourcePath,ParameterValue=$(SOURCE_PATH)
 
 version:
 	echo $(SERVICE_VERSION)

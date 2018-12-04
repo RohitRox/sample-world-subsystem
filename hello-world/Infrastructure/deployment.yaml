@@ -11,6 +11,9 @@ Parameters:
   GitRepo:
     Type: String
 
+  GitOauthToken:
+    Type: String
+
   SubSystem:
     Type: String
     Description: Subsystem Code (should be all lowercases)
@@ -42,11 +45,32 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
+                  - ecr:GetAuthorizationToken
+                Resource: "*"
+              - Effect: Allow
+                Action:
                   - logs:*
-                  - ecs:*
-                  - cloudwatch:*
                 Resource:
                   - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*
+              - Effect: Allow
+                Action:
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:PutImage
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/*
+              - Effect: Allow
+                Action:
+                  - ecs:*
+                  - ec2:*
+                  - elasticloadbalancing:*
+                  - application-autoscaling:*
+                  - cloudformation:*
+                  - cloudwatch:*
+                Resource: "*"
 
   CodeBuildDeploy:
     Type: AWS::CodeBuild::Project
@@ -68,15 +92,25 @@ Resources:
               commands:
                 - COMMIT="$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
                 - WORKDIR=$(pwd)
+                - cd $SOURCE_PATH
                 - echo "Current Git commit is ${COMMIT} at ${CODEBUILD_SOURCE_REPO_URL}"
+                - if [ -z "$ENV_LABEL"]; then echo "No Environment label specified"; exit 1; fi
+                - git remote remove origin
+                - git remote add origin $GIT_REMOTE
+                - git fetch --tags
+                - SERVICE_VERSION=$(make -s version)
+                - HAS_PAST_TAG=$(git tag | grep $SERVICE_VERSION | true)
+                - if [ ! -z "$HAS_PAST_TAG"]; then echo "$SERVICE_VERSION has already been released."; exit 1; fi
             build:
               commands:
                 - echo "Starting deployment for ${SERVICE_NAME} at ${COMMIT} in ${ENV_LABEL} environment..."
-                - cd $SOURCE_PATH
-                - make build
-                - make test
-                - make ecr-push
-                - make update-service
+                # - make build
+                # - make test
+                # - make ecr-push
+                # - make update-service
+                - GIT_TAG="v${SERVICE_VERSION}"
+                - git tag $GIT_TAG $COMMIT
+                - git push origin $GIT_TAG
       Triggers:
         Webhook: false
       Environment:
@@ -88,3 +122,5 @@ Resources:
           Value: !Ref SourcePath
         - Name: SERVICE_NAME
           Value: !Ref ServiceName
+        - Name: GIT_REMOTE
+          Value: !Sub https://${GitUser}:${GitOauthToken}@github.com/${GitUser}/${GitRepo}.git
