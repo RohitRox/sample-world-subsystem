@@ -24,7 +24,7 @@ GIT_REPO:=sample-world-subsystem
 SOURCE_PATH:=./hello-world
 
 # Latest service version, follow Semantic Versioning, always update this on release/deploy
-SERVICE_VERSION=0.0.0
+SERVICE_VERSION=0.0.1
 
 STACK_NAME:=$(ENV_LABEL)-$(SUB_SYSTEM)-$(SERVICE_NAME)
 IMAGE_NAME:=$(SUB_SYSTEM)-$(SERVICE_NAME)
