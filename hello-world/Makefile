@@ -1,5 +1,11 @@
 ACCOUNT_ID:=$(shell aws sts get-caller-identity --profile $(AWS_PROFILE) --region $(AWS_REGION) --output text --query 'Account')
 
+MAKE_ARGS:=
+
+ifeq ($(CODEBUILD_RESOLVED_SOURCE_VERSION),)
+	MAKE_ARGS=--profile swm --region us-east-1
+endif
+
 # all xxx needs to be updated, also modify other constants as required
 
 # Service stack parameters
@@ -15,7 +21,6 @@ DESIRED_COUNT:=2
 # Source and Git
 GIT_USER:=rohitrox
 GIT_REPO:=sample-world-subsystem
-GIT_BRANCH:=master
 SOURCE_PATH:=./hello-world
 
 # Latest service version, follow Semantic Versioning, always update this on release/deploy
@@ -24,6 +29,9 @@ SERVICE_VERSION=0.0.0
 STACK_NAME:=$(ENV_LABEL)-$(SUB_SYSTEM)-$(SERVICE_NAME)
 IMAGE_NAME:=$(SUB_SYSTEM)-$(SERVICE_NAME)
 ECR_ADDR:=$(ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/$(IMAGE_NAME)
+
+chec:
+	aws ecr describe-repositories $(MAKE_ARGS)
 
 build:
 	docker build -t $(SERVICE_NAME) .
@@ -50,5 +58,11 @@ create-service:
 	aws cloudformation create-stack --stack-name $(STACK_NAME) --template-body file://Infrastructure/service.yaml --profile $(AWS_PROFILE) --region $(AWS_REGION) --capabilities CAPABILITY_IAM --parameters ParameterKey=EnvLabel,ParameterValue=$(ENV_LABEL) ParameterKey=EnvType,ParameterValue=$(ENV_TYPE) ParameterKey=SubSystem,ParameterValue=$(SUB_SYSTEM) ParameterKey=ServiceName,ParameterValue=$(SERVICE_NAME) ParameterKey=ServiceVersion,ParameterValue=$(SERVICE_VERSION) ParameterKey=DockerRepoUrl,ParameterValue=$(ECR_ADDR) ParameterKey=AppPort,ParameterValue=$(APP_PORT) ParameterKey=UrlPattern,ParameterValue=$(URL_PATTERN) ParameterKey=Priority,ParameterValue=$(PRIORITY) ParameterKey=DesiredCount,ParameterValue=$(DESIRED_COUNT) ParameterKey=HealthCheckPath,ParameterValue=$(HEALTH_CHECK_PATH)
 update-service:
 	aws cloudformation update-stack --stack-name $(STACK_NAME) --template-body file://Infrastructure/service.yaml --profile $(AWS_PROFILE) --region $(AWS_REGION) --capabilities CAPABILITY_IAM --parameters ParameterKey=EnvLabel,UsePreviousValue=true ParameterKey=EnvType,UsePreviousValue=true ParameterKey=SubSystem,UsePreviousValue=true ParameterKey=ServiceName,UsePreviousValue=true ParameterKey=ServiceVersion,ParameterValue=$(SERVICE_VERSION) ParameterKey=DockerRepoUrl,ParameterValue=$(ECR_ADDR) ParameterKey=AppPort,ParameterValue=$(APP_PORT) ParameterKey=UrlPattern,ParameterValue=$(URL_PATTERN) ParameterKey=Priority,ParameterValue=$(PRIORITY) ParameterKey=DesiredCount,ParameterValue=$(DESIRED_COUNT) ParameterKey=HealthCheckPath,ParameterValue=$(HEALTH_CHECK_PATH)
+
+create-deployment:
+	aws cloudformation create-stack --stack-name $(STACK_NAME)-deployment --template-body file://Infrastructure/deployment.yaml --profile $(AWS_PROFILE) --region $(AWS_REGION) --capabilities CAPABILITY_IAM --parameters ParameterKey=ServiceName,ParameterValue=$(SERVICE_NAME) ParameterKey=SubSystem,ParameterValue=$(SUB_SYSTEM) ParameterKey=GitRepo,ParameterValue=$(GIT_REPO) ParameterKey=GitUser,ParameterValue=$(GIT_USER) ParameterKey=SourcePath,ParameterValue=$(SOURCE_PATH)
+
 version:
 	echo $(SERVICE_VERSION)
+
+
